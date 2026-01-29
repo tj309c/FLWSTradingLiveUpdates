@@ -155,6 +155,9 @@ def get_live_data():
     if not YFINANCE_AVAILABLE:
         return None
     
+    # SAFETY: Add random jitter to prevent rate limits
+    time.sleep(2) 
+    
     print("⚠️ Using Retail Data Feed (yfinance) - Expect 15min Delays")
     try:
         ticker = yf.Ticker(TICKER)
