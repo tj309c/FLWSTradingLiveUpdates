@@ -1,0 +1,30 @@
+name: FLWS Jan 29 Watchdog
+
+on:
+  schedule:
+    # Run every 10 minutes during US Market Hours (approx 14:00 - 21:00 UTC)
+    - cron: '*/10 14-22 * * *'
+  workflow_dispatch: # Allow manual trigger button
+
+jobs:
+  monitor:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+
+      - name: Install Dependencies
+        run: |
+          pip install pandas requests toml yfinance
+
+      - name: Run FLWS Battle Monitor
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          POLYGON_API_KEY: ${{ secrets.POLYGON_API_KEY }}
+        run: |
+          python production/flws_live_monitor_jan29.py
