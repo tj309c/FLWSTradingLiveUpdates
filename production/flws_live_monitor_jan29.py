@@ -102,13 +102,44 @@ def get_polygon_snapshot():
             
             # --- MODEL METRICS ---
             # 1. Spread Vacuum (Widening spread = Liquidity drying up)
-            bid = last_quote.get('P', 0)
-            ask = last_quote.get('p', 0)
-            spread_cents = (ask - bid) * 100 if bid and ask else 0
+            # Polygon Snapshot Quote object: 
+            # p = bid price (small p), P = ask price (Big P)? 
+            # Correction based on Polygon Docs:
+            # lastQuote: {
+            #   "p": 218.44, (Ask Price) -> Wait, let's just try both cases or assume standard
+            #   "S": 1, (Ask Size)
+            #   "P": 218.42, (Bid Price)
+            #   "s": 1, (Bid Size)
+            #   "t": 1612...
+            # }
+            # Wait, standard mapping often:
+            # p = price? P = ? 
+            # Let's fix this by checking specific keys.
+            
+            # ATTEMPT 1: Try Standard Polygon Keys
+            bid = last_quote.get('p') 
+            ask = last_quote.get('P')
+            bid_size = last_quote.get('s')
+            ask_size = last_quote.get('S')
+
+            # Swap if the spread is negative (implies we mixed them up)
+            if bid and ask and bid > ask:
+                bid, ask = ask, bid
+                bid_size, ask_size = ask_size, bid_size
+            
+            # Fallback for 'price' key if 'p' missing
+            if not bid:
+                bid = last_quote.get('bid_price', 0)
+            if not ask:
+                ask = last_quote.get('ask_price', 0)
+
+            spread_cents = (ask - bid) * 100 if (bid and ask) else 0
             
             # 2. Order Flow Imbalance (Buying Pressure vs Selling Wall)
-            bid_size = last_quote.get('s', 0)
-            ask_size = last_quote.get('S', 0)
+            # Ensure sizes are ints
+            bid_size = int(bid_size) if bid_size else 0
+            ask_size = int(ask_size) if ask_size else 0
+            
             imbalance = 0
             if (bid_size + ask_size) > 0:
                 imbalance = (bid_size - ask_size) / (bid_size + ask_size)
@@ -288,6 +319,12 @@ def main():
     print(f"Source: {data.get('source', 'Unknown')}")
     print(f"Price:  ${data['price']} ({data['change_pct']}%)")
     print(f"Volume: {data['volume']:,} (Goal: {VACUUM_VOLUME_TARGET:,})")
+    
+    # Extra Diagnostics for Console
+    if 'spread' in data:
+        print(f"Spread: {data['spread']}¢")
+        print(f"Imbal:  {data.get('imbalance', 0):.2f} (Bid: {data.get('bid_size')} / Ask: {data.get('ask_size')})")
+    
     print("="*60)
 
     payload = generate_status_report(data)
