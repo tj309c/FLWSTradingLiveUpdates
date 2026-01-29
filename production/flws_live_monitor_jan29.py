@@ -97,17 +97,35 @@ def get_polygon_snapshot():
             
             # Extract precise metrics
             day = ticker_data['day']
-            last = ticker_data['lastTrade']
+            last_trade = ticker_data['lastTrade']
+            last_quote = ticker_data.get('lastQuote', {})
+            
+            # --- MODEL METRICS ---
+            # 1. Spread Vacuum (Widening spread = Liquidity drying up)
+            bid = last_quote.get('P', 0)
+            ask = last_quote.get('p', 0)
+            spread_cents = (ask - bid) * 100 if bid and ask else 0
+            
+            # 2. Order Flow Imbalance (Buying Pressure vs Selling Wall)
+            bid_size = last_quote.get('s', 0)
+            ask_size = last_quote.get('S', 0)
+            imbalance = 0
+            if (bid_size + ask_size) > 0:
+                imbalance = (bid_size - ask_size) / (bid_size + ask_size)
             
             return {
                 "source": "POLYGON (Real-Time)",
-                "price": round(last['p'], 2),
+                "price": round(last_trade['p'], 2),
                 "prev_close": round(ticker_data['prevDay']['c'], 2),
                 "change_pct": round(ticker_data['todaysChangePerc'], 2),
                 "volume": day['v'],
                 "vwap": day.get('vw', 0),
-                "high": day.get('h', last['p']),
-                "low": day.get('l', last['p'])
+                "high": day.get('h', last_trade['p']),
+                "low": day.get('l', last_trade['p']),
+                "spread": round(spread_cents, 1),
+                "bid_size": bid_size,
+                "ask_size": ask_size,
+                "imbalance": round(imbalance, 2)
             }
     except Exception as e:
         print(f"⚠️ Polygon Fetch Error: {e}")
@@ -202,35 +220,53 @@ def generate_status_report(data):
     vol_pct = (volume / VACUUM_VOLUME_TARGET) * 100
     
     # 3. Message Construction
-    description = f"**Current Price:** ${price} ({data['change_pct']}%)\n**Volume:** {volume:,.0f} ({vol_pct:.1f}% of Vacuum Target)"
+    # Imbalance description
+    if data.get('imbalance', 0) > 0.3:
+        pressure = "🟢 BUYING PRESSURE"
+    elif data.get('imbalance', 0) < -0.3:
+        pressure = "🔴 SELLING WALL"
+    else:
+        pressure = "⚪ BALANCED"
+
+    description = (
+        f"**Price:** ${price} ({data['change_pct']}%)\n"
+        f"**Volume:** {volume:,.0f} ({vol_pct:.1f}%)\n"
+        f"**Order Book:** {pressure} (Imbal: {data.get('imbalance', 0)})"
+    )
     
-    return {
-        "embeds": [{
-            "title": f"FLWS LIVE MONITOR: {status}",
-            "description": description,
-            "color": color,
-            "fields": [
-                {
-                    "name": "🎯 Key Levels Watch",
-                    "value": (
-                        f"• $6.00 (Nuclear): {('✅ BREACHED' if price >= 6.00 else 'Wait...')}\n"
-                        f"• $5.46 (Stress): {('✅ BREACHED' if price >= 5.46 else 'Wait...')}\n"
-                        f"• $5.03 (Pin Break): {('✅ BREACHED' if price >= 5.03 else 'Wait...')}\n"
-                        f"• $4.80 (Floor): {('✅ HELD' if price >= 4.80 else '⚠️ AT RISK')}"
-                    ),
-                    "inline": False
-                },
-                {
-                    "name": "📊 Volume Vacuum",
-                    "value": f"Goal: 1.5M Shares\nCurrent: {volume/1_000_000:.2f}M\n*Price expands automatically as volume fills the vacuum.*",
-                    "inline": False
-                }
-            ],
-            "footer": {
-                "text": f"Kurrupt Research | Last Update: {datetime.now().strftime('%H:%M:%S ET')}"
+    embed = {
+        "title": f"FLWS LIVE MONITOR: {status}",
+        "description": description,
+        "color": color,
+        "fields": [
+            {
+                "name": "🎯 Key Levels Watch",
+                "value": (
+                    f"• $6.00 (Nuclear): {('✅ BREACHED' if price >= 6.00 else 'Wait...')}\n"
+                    f"• $5.46 (Stress): {('✅ BREACHED' if price >= 5.46 else 'Wait...')}\n"
+                    f"• $5.03 (Pin Break): {('✅ BREACHED' if price >= 5.03 else 'Wait...')}\n"
+                    f"• $4.80 (Floor): {('✅ HELD' if price >= 4.80 else '⚠️ AT RISK')}"
+                ),
+                "inline": False
+            },
+            {
+                "name": "🌊 Liquidity Vacuum Model",
+                "value": (
+                    f"**Spread Width:** {data.get('spread', 'N/A')}¢ "
+                    f"{'⚠️ (WIDENING - Vacuum Forming)' if data.get('spread', 0) > 5 else '✅ (Tight - Algo Controlled)'}\n"
+                    f"**Bid Stack:** {data.get('bid_size', 0)} shares\n"
+                    f"**Ask Wall:** {data.get('ask_size', 0)} shares\n"
+                    f"**Filled:** {vol_pct:.1f}% of 1.5M Target"
+                ),
+                "inline": False
             }
-        }]
+        ],
+        "footer": {
+            "text": f"Kurrupt Research | {data.get('source')} | {datetime.now().strftime('%H:%M:%S ET')}"
+        }
     }
+
+    return {"embeds": [embed]}
 
 def main():
     print(f"Starting FLWS Monitor at {datetime.now()}")
