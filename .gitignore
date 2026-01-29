@@ -1,34 +1,86 @@
-# Secrets
+# --- Security (CRITICAL) ---
 secrets.toml
 config/secrets.toml
 .env
-.env.local
+.env.development
+.env.test
+.env.production
+*.key
+*.pem
+*.p12
 
-# Python
+# --- Dependency Directories ---
+.venv/
+venv/
+ENV/
+env.bak/
+venv.bak/
+__pypackages__/
+
+# --- Python Internals ---
 __pycache__/
 *.py[cod]
 *$py.class
-.venv/
-venv/
-env/
+*.so
+.Python
 
-# Data
+# --- Distribution / Build ---
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# --- Jupyter Notebooks ---
+.ipynb_checkpoints
+*-checkpoint.ipynb
+
+# --- Data & Large Files (Project Specific) ---
+# Ignore all data directories to prevent leak/bloat
+data/
+data_features/
+data_files/
+social_data/
+sec_api_data/
+sec_filings/
+unusual_whales_data/
+data_cache/
+
+# Ignore specific large file extensions anywhere
 *.csv
 *.parquet
 *.json
 *.pdf
-*.txt
-data/
-
-# Logs
-*.log
-
-# IDE
-.vscode/
-.idea/
-
-# Models
+*.xls
+*.xlsx
 *.pkl
 *.h5
 *.pt
-models_saved/
+*.txt
+
+# --- Logs & Databases ---
+*.log
+*.sqlite
+*.db
+
+# --- IDE / Editor ---
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# --- OS Generated ---
+.DS_Store
+Thumbs.db
