@@ -39,7 +39,7 @@ sys.path.insert(0, str(PROJECT_ROOT))
 # -----------------------------------------------------------------------------
 # CONFIGURATION
 # -----------------------------------------------------------------------------
-DISCORD_ENABLED = False  # SAFETY SWITCH: Set to True only when ready
+DISCORD_ENABLED = True  # SAFETY SWITCH: ARMED AND READY
 TICKER = "FLWS"
 LEVELS = {
     "NATURAL_FLOOR": 4.80,
