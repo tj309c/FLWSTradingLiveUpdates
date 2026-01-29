@@ -36,6 +36,8 @@ except ImportError:
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
+import argparse
+
 # -----------------------------------------------------------------------------
 # CONFIGURATION
 # -----------------------------------------------------------------------------
@@ -267,4 +269,24 @@ def main():
         print(f"❌ Connection Error: {e}")
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--loop", action="store_true", help="Run in continuous loop mode (9 mins)")
+    args = parser.parse_args()
+
+    if args.loop:
+        print("🔁 STARTING CONTINUOUS MONITOR (9 Minute Session)")
+        # Run for ~9 minutes to fit inside 10-min Cron Schedule
+        # 9 * 60 = 540 seconds
+        end_time = time.time() + 540 
+        
+        while time.time() < end_time:
+            try:
+                main()
+            except Exception as e:
+                print(f"Loop Error: {e}")
+            
+            print("⏳ Sleeping 60s...")
+            time.sleep(60)
+            print("-" * 30)
+    else:
+        main()

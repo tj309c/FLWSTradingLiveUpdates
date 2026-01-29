@@ -27,4 +27,4 @@ jobs:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
           POLYGON_API_KEY: ${{ secrets.POLYGON_API_KEY }}
         run: |
-          python production/flws_live_monitor_jan29.py
+          python production/flws_live_monitor_jan29.py --loop
