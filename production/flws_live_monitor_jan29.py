@@ -67,6 +67,7 @@ def load_secrets():
 
 SECRETS = load_secrets()
 POLYGON_KEY = SECRETS.get('POLYGON_API_KEY') or os.environ.get('POLYGON_API_KEY')
+CHARTEXCHANGE_KEY = SECRETS.get('CHARTEXCHANGE_API_KEY') or os.environ.get('CHARTEXCHANGE_API_KEY')
 
 def get_webhook_url():
     # Priority 1: Environment Variable (GitHub Actions / Cloud)
@@ -254,18 +255,23 @@ def generate_status_report(data):
     vol_pct = (volume / VACUUM_VOLUME_TARGET) * 100
     
     # 3. Message Construction
-    # Imbalance description
-    if data.get('imbalance', 0) > 0.3:
-        pressure = "🟢 BUYING PRESSURE"
-    elif data.get('imbalance', 0) < -0.3:
-        pressure = "🔴 SELLING WALL"
+    # Imbalance description (ChartExchange Dark Pool Walls)
+    if data.get('top_wall_price'):
+        wall_pct_diff = ((data['top_wall_price'] - price) / price) * 100
+        if wall_pct_diff > 1:
+            pressure = f"🔴 CEILING @ ${data['top_wall_price']}"
+        elif wall_pct_diff < -1:
+            pressure = f"🟢 SUPPORT @ ${data['top_wall_price']}"
+        else:
+            pressure = f"⚔️ CONTESTED @ ${data['top_wall_price']}"
     else:
-        pressure = "⚪ BALANCED"
+        pressure = "⚪ NO DATA"
 
     description = (
-        f"**Price:** ${price} ({data['change_pct']}%)\n"
+        f"**Retail Price:** ${price} ({data['change_pct']}%)\n"
+        f"**DP VWAP:** ${data.get('dp_vwap', 'N/A')} (Real Inst. Price)\n"
         f"**Volume:** {volume:,.0f} ({vol_pct:.1f}%)\n"
-        f"**Order Book:** {pressure} (Imbal: {data.get('imbalance', 0)})"
+        f"**Structure:** {pressure} ({data.get('top_wall_vol',0):,} shares)"
     )
     
     embed = {
@@ -284,13 +290,11 @@ def generate_status_report(data):
                 "inline": False
             },
             {
-                "name": "🌊 Liquidity Vacuum Model",
+                "name": "🌊 Liquidity Vacuum Model (Hybrid)",
                 "value": (
-                    f"**Spread Width:** {data.get('spread', 'N/A')}¢ "
-                    f"{'⚠️ (WIDENING - Vacuum Forming)' if data.get('spread', 0) > 5 else '✅ (Tight - Algo Controlled)'}\n"
-                    f"**Bid Stack:** {data.get('bid_size', 0)} shares\n"
-                    f"**Ask Wall:** {data.get('ask_size', 0)} shares\n"
-                    f"**Filled:** {vol_pct:.1f}% of 1.5M Target"
+                    f"**Dark Pool Volume:** {data.get('dp_volume', 'N/A'):,} shares\n"
+                    f"**Instit. Wall:** {data.get('top_wall_vol', 'N/A'):,} @ ${data.get('top_wall_price', 'N/A')}\n"
+                    f"**Retail Flow:** {vol_pct:.1f}% of 1.5M Target"
                 ),
                 "inline": False
             }
